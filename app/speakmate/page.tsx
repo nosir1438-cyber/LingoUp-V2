@@ -1,20 +1,38 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function SpeakMate() {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
   const [transcript, setTranscript] = useState("");
+  const [audioUrl, setAudioUrl] = useState<string | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
 
   const recognitionRef = useRef<any>(null);
   const shouldKeepListeningRef = useRef(false);
 
-  const goBack = () => {
-    window.history.back();
-  };
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  const startListening = () => {
+  // Speech Recognition support
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setIsSupported(false);
+    }
+  }, []);
+
+  // Start microphone + speech recognition
+  const startListening = async () => {
+    if (isListening) return;
+
     const SpeechRecognition =
       (window as any).SpeechRecognition ||
       (window as any).webkitSpeechRecognition;
@@ -24,97 +42,193 @@ export default function SpeakMate() {
       return;
     }
 
-    shouldKeepListeningRef.current = true;
-
-    const recognition = new SpeechRecognition();
-
-    recognition.lang = "en-US";
-    recognition.continuous = true;
-    recognition.interimResults = true;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onresult = (event: any) => {
-      let finalText = "";
-      let interimText = "";
-
-      for (
-        let i = event.resultIndex;
-        i < event.results.length;
-        i++
-      ) {
-        const text = event.results[i][0].transcript;
-
-        if (event.results[i].isFinal) {
-          finalText += text;
-        } else {
-          interimText += text;
-        }
-      }
-
-      if (finalText) {
-        setTranscript((previous) =>
-          `${previous} ${finalText}`.trim()
-        );
-      } else if (interimText) {
-        console.log("Listening:", interimText);
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      console.log("Speech recognition error:", event.error);
-
-      if (event.error === "not-allowed") {
-        shouldKeepListeningRef.current = false;
-        setIsListening(false);
-      }
-    };
-
-    recognition.onend = () => {
-      /*
-       * Browser recognition sometimes stops by itself.
-       * If the user has NOT pressed the microphone again,
-       * start listening again.
-       */
-      if (shouldKeepListeningRef.current) {
-        try {
-          recognition.start();
-        } catch (error) {
-          console.log("Recognition restart:", error);
-        }
-      } else {
-        setIsListening(false);
-      }
-    };
-
-    recognitionRef.current = recognition;
-
     try {
+      // Microphone access
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: true,
+      });
+
+      streamRef.current = stream;
+
+      // Audio recording
+      audioChunksRef.current = [];
+
+      const recorder = new MediaRecorder(stream);
+
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        const audioBlob = new Blob(audioChunksRef.current, {
+          type: "audio/webm",
+        });
+
+        const url = URL.createObjectURL(audioBlob);
+
+        if (audioUrl) {
+          URL.revokeObjectURL(audioUrl);
+        }
+
+        setAudioUrl(url);
+      };
+
+      recorder.start();
+      setIsRecording(true);
+
+      // Speech recognition
+      const recognition = new SpeechRecognition();
+
+      recognition.lang = "en-US";
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      shouldKeepListeningRef.current = true;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event: any) => {
+        /*
+          MUHIM:
+          Biz faqat event.resultIndex dan boshlab
+          yangi natijalarni olamiz.
+
+          Shu sababli brauzer oldingi resultlarni
+          qayta yuborsa, ularni yana transcriptga
+          qo‘shib yubormaymiz.
+        */
+
+        let newFinalText = "";
+        let currentInterimText = "";
+
+        for (
+          let i = event.resultIndex;
+          i < event.results.length;
+          i++
+        ) {
+          const result = event.results[i];
+
+          const text = result[0].transcript.trim();
+
+          if (result.isFinal) {
+            newFinalText += text + " ";
+          } else {
+            currentInterimText += text + " ";
+          }
+        }
+
+        if (newFinalText.trim()) {
+          setTranscript((previous) => {
+            const cleanNewText = newFinalText.trim();
+
+            if (!previous.trim()) {
+              return cleanNewText;
+            }
+
+            // Bir xil gapni qayta qo‘shib yubormaslik
+            const previousClean = previous.trim();
+
+            if (
+              previousClean.toLowerCase().endsWith(
+                cleanNewText.toLowerCase()
+              )
+            ) {
+              return previousClean;
+            }
+
+            return `${previousClean} ${cleanNewText}`;
+          });
+        }
+
+        // Interim result ekranda ko‘rinishi uchun
+        // alohida vaqtinchalik state ishlatmaymiz.
+        // Final transcript barqaror saqlanadi.
+        void currentInterimText;
+      };
+
+      recognition.onerror = (event: any) => {
+        console.log("Speech recognition error:", event.error);
+
+        if (event.error === "not-allowed") {
+          shouldKeepListeningRef.current = false;
+          setIsListening(false);
+          setIsRecording(false);
+        }
+      };
+
+      recognition.onend = () => {
+        /*
+          Foydalanuvchi hali STOP bosmagan bo‘lsa,
+          recognition o‘z-o‘zidan tugab qolsa,
+          yana ishga tushadi.
+        */
+
+        if (shouldKeepListeningRef.current) {
+          try {
+            recognition.start();
+          } catch (error) {
+            console.log("Recognition restart:", error);
+          }
+        } else {
+          setIsListening(false);
+        }
+      };
+
+      recognitionRef.current = recognition;
+
       recognition.start();
     } catch (error) {
-      console.log("Speech recognition start:", error);
+      console.error("Microphone error:", error);
       setIsListening(false);
-      shouldKeepListeningRef.current = false;
+      setIsRecording(false);
     }
   };
 
+  // Stop microphone + recording
   const stopListening = () => {
-    /*
-     * This is the ONLY way the user intentionally
-     * turns the microphone off.
-     */
     shouldKeepListeningRef.current = false;
 
+    // Speech recognition stop
     if (recognitionRef.current) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (error) {
+        console.log(error);
+      }
+
       recognitionRef.current = null;
     }
 
+    // Audio recorder stop
+    if (
+      mediaRecorderRef.current &&
+      mediaRecorderRef.current.state !== "inactive"
+    ) {
+      mediaRecorderRef.current.stop();
+    }
+
+    mediaRecorderRef.current = null;
+
+    // Release microphone
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => {
+        track.stop();
+      });
+
+      streamRef.current = null;
+    }
+
     setIsListening(false);
+    setIsRecording(false);
   };
 
+  // Toggle
   const toggleListening = () => {
     if (isListening) {
       stopListening();
@@ -123,290 +237,277 @@ export default function SpeakMate() {
     }
   };
 
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      shouldKeepListeningRef.current = false;
+
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+      }
+
+      if (mediaRecorderRef.current) {
+        try {
+          if (mediaRecorderRef.current.state !== "inactive") {
+            mediaRecorderRef.current.stop();
+          }
+        } catch {}
+      }
+
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => {
+          track.stop();
+        });
+      }
+
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
+
   return (
-    <main className="min-h-screen bg-[#020817] text-white">
-      <div className="mx-auto min-h-screen max-w-[430px] overflow-hidden bg-[#061338]">
+    <main className="min-h-screen bg-[#061338] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-6 pt-6">
 
-        {/* BACKGROUND */}
-        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+        {/* HEADER */}
+        <header className="flex items-center justify-between">
+          <button
+            onClick={() => window.history.back()}
+            className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xl text-white/80"
+          >
+            ←
+          </button>
 
-          <div className="absolute left-[-180px] top-[250px] h-[400px] w-[650px] rotate-[15deg] rounded-[50%] border-[35px] border-violet-600/20 blur-[25px]" />
+          <div className="text-center">
+            <h1 className="text-xl font-bold">SpeakMate</h1>
+            <p className="mt-1 text-[11px] text-white/45">
+              Real conversations. Real progress.
+            </p>
+          </div>
 
-          <div className="absolute left-[-160px] top-[340px] h-[300px] w-[650px] rotate-[15deg] rounded-[50%] border-[25px] border-blue-500/20 blur-[20px]" />
+          <button className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-white/5 text-xl text-white/70">
+            ⋮
+          </button>
+        </header>
 
-          <div className="absolute right-[-200px] top-[470px] h-[300px] w-[650px] rotate-[-18deg] rounded-[50%] border-[25px] border-fuchsia-500/15 blur-[25px]" />
+        {/* AI AVATAR */}
+        <div className="mt-7 flex justify-center">
+          <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/30 via-blue-500/20 to-cyan-400/20 shadow-[0_0_60px_rgba(99,102,241,0.35)]">
+            <div className="absolute inset-2 rounded-full border border-violet-300/20" />
 
-          <div className="absolute bottom-[-180px] left-1/2 h-[400px] w-[500px] -translate-x-1/2 rounded-full bg-blue-600/10 blur-[120px]" />
-
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500 shadow-lg">
+              <div className="relative h-9 w-10 rounded-[45%] bg-white/95">
+                <span className="absolute left-2 top-3 h-2 w-2 rounded-full bg-[#5865f2]" />
+                <span className="absolute right-2 top-3 h-2 w-2 rounded-full bg-[#5865f2]" />
+                <span className="absolute bottom-2 left-1/2 h-1 w-4 -translate-x-1/2 rounded-full bg-[#5865f2]" />
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div className="relative z-10 min-h-screen px-5">
+        {/* AI MESSAGE */}
+        <section className="mt-7 rounded-[26px] border border-white/10 bg-white/[0.07] p-5 shadow-xl backdrop-blur">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-violet-300">
+            SpeakMate AI
+          </p>
 
-          {/* HEADER */}
-          <header className="flex items-center justify-between pt-5">
+          <p className="mt-3 text-[17px] font-medium leading-7 text-white">
+            Hi Ruxsora! 👋
+          </p>
 
-            <button
-              onClick={goBack}
-              className="flex h-9 w-9 items-center justify-center text-[29px] font-light text-white"
-              aria-label="Back"
-            >
-              ‹
-            </button>
+          <p className="mt-1 text-[15px] leading-6 text-white/65">
+            What do you usually do in your free time?
+          </p>
+        </section>
 
-            <div className="text-center">
-
-              <h1 className="text-[16px] font-semibold tracking-tight">
-                SpeakMate
-              </h1>
-
-              <p className="mt-1 text-[10px] text-white/55">
-                Real conversations. Real progress.
-              </p>
-
-            </div>
-
-            <button
-              className="flex h-9 w-9 items-center justify-center text-[22px] text-white/80"
-              aria-label="More"
-            >
-              ⋮
-            </button>
-
-          </header>
-
-          {/* AI MESSAGE */}
-          <section className="mt-9 flex items-start gap-3">
-
-            <div className="relative mt-1 flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border border-violet-300/50 bg-[#0b1741] shadow-[0_0_25px_rgba(93,92,255,0.35)]">
-
-              <div className="absolute inset-[5px] rounded-full bg-gradient-to-br from-violet-500/80 to-blue-400/70 opacity-70 blur-[2px]" />
-
-              <div className="relative flex h-[31px] w-[31px] items-center justify-center rounded-[10px] border border-cyan-200/60 bg-[#07132f] shadow-[0_0_12px_rgba(72,220,255,.4)]">
-
-                <div className="flex gap-[5px]">
-
-                  <span className="h-[5px] w-[5px] rounded-full bg-cyan-300" />
-
-                  <span className="h-[5px] w-[5px] rounded-full bg-cyan-300" />
-
-                </div>
-
-              </div>
-
-            </div>
-
-            <div className="max-w-[255px] rounded-[19px] rounded-tl-[5px] bg-[#f7f8ff] px-[18px] py-[13px] shadow-[0_8px_25px_rgba(0,0,0,.18)]">
-
-              <p className="text-[12px] font-semibold leading-5 text-[#15204a]">
-                Hi Ruxsora! 👋
-              </p>
-
-              <p className="mt-[1px] text-[12px] leading-[18px] text-[#15204a]">
-                What do you usually do
-                <br />
-                in your free time?
-              </p>
-
-            </div>
-
-          </section>
-
-          {/* AI VOICE */}
-          <section className="ml-[61px] mt-3 flex h-[43px] w-[245px] items-center rounded-[14px] bg-gradient-to-r from-[#744cff] via-[#625eff] to-[#318dfd] px-3 shadow-[0_8px_25px_rgba(66,77,255,.25)]">
-
-            <button
-              className="flex h-[27px] w-[27px] shrink-0 items-center justify-center rounded-full bg-white/20 text-[10px]"
-              aria-label="Play"
-            >
+        {/* AI VOICE */}
+        <div className="mt-5 flex justify-end">
+          <div className="flex items-center gap-3 rounded-[22px] bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3 shadow-lg shadow-blue-900/20">
+            <button className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
               ▶
             </button>
 
-            <div className="ml-3 flex h-7 flex-1 items-center justify-center gap-[2px]">
-
-              {[7, 12, 17, 10, 22, 13, 18, 25, 11, 20, 14, 27, 10, 18, 23, 13, 20, 9, 17, 25, 12, 19, 8, 15].map(
-                (height, index) => (
-                  <span
-                    key={index}
-                    className="w-[2px] rounded-full bg-white/85"
-                    style={{ height: `${height}px` }}
-                  />
-                )
-              )}
-
+            <div className="flex items-center gap-[3px]">
+              <span className="h-3 w-[2px] rounded-full bg-white/60" />
+              <span className="h-5 w-[2px] rounded-full bg-white/80" />
+              <span className="h-7 w-[2px] rounded-full bg-white" />
+              <span className="h-4 w-[2px] rounded-full bg-white/70" />
+              <span className="h-6 w-[2px] rounded-full bg-white" />
+              <span className="h-3 w-[2px] rounded-full bg-white/60" />
+              <span className="h-5 w-[2px] rounded-full bg-white/80" />
             </div>
 
-            <span className="ml-2 text-[10px] font-medium">
-              0:12
-            </span>
+            <span className="text-xs text-white/80">0:12</span>
+          </div>
+        </div>
 
-          </section>
-
-          {/* MICROPHONE */}
-          <section className="mt-[74px] flex flex-col items-center">
-
-            <button
-              onClick={toggleListening}
-              className="relative flex h-[126px] w-[126px] items-center justify-center rounded-full"
-              aria-label={
-                isListening
-                  ? "Stop listening"
-                  : "Start speaking"
-              }
-            >
-
-              <span className="absolute inset-[-18px] rounded-full border border-blue-400/10" />
-
-              <span className="absolute inset-[-10px] rounded-full border border-violet-400/20" />
-
-              <span
-                className={`absolute inset-[-2px] rounded-full border border-cyan-300/40 ${
-                  isListening ? "animate-pulse" : ""
-                }`}
-              />
-
-              <span className="absolute inset-[3px] rounded-full bg-gradient-to-br from-violet-600/60 via-blue-500/40 to-cyan-400/60 blur-[10px]" />
-
-              <span className="absolute inset-[12px] rounded-full bg-gradient-to-br from-[#b35cff] via-[#6658ff] to-[#20c5ff] shadow-[inset_0_0_25px_rgba(255,255,255,.4),0_0_45px_rgba(80,100,255,.6)]" />
-
-              <span className="absolute inset-[21px] rounded-full border border-white/45 bg-white/10 shadow-[inset_0_0_18px_rgba(255,255,255,.2)] backdrop-blur-md" />
-
-              {/* MICROPHONE SVG */}
-              <svg
-                className="relative z-10 h-[48px] w-[48px] text-white drop-shadow-[0_0_12px_rgba(255,255,255,.9)]"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-
-                <rect
-                  x="8"
-                  y="2.5"
-                  width="8"
-                  height="12"
-                  rx="4"
-                />
-
-                <path d="M5 11.5a7 7 0 0 0 14 0" />
-
-                <path d="M12 18.5v3" />
-
-                <path d="M9 21.5h6" />
-
-              </svg>
-
-            </button>
-
-            <p className="mt-[27px] text-[13px] font-medium tracking-tight text-white">
-              {isListening
-                ? "I'm listening..."
-                : "Tap to speak"}
+        {/* USER TRANSCRIPT */}
+        <section className="mt-5 rounded-[22px] border border-white/10 bg-white/[0.045] p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-300">
+              Your speech
             </p>
 
-            {/* WAVEFORM */}
-            <div className="mt-[18px] flex h-[34px] items-center gap-[3px]">
+            {isListening && (
+              <span className="flex items-center gap-2 text-[10px] text-green-300">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
+                Listening
+              </span>
+            )}
+          </div>
 
-              {[6, 11, 17, 10, 21, 14, 26, 11, 19, 28, 14, 23, 31, 17, 26, 12, 22, 30, 16, 25, 11, 19, 28, 13, 21, 9, 16, 25, 12, 20].map(
-                (height, index) => (
-                  <span
-                    key={index}
-                    className="w-[2px] rounded-full bg-gradient-to-t from-blue-400 via-violet-400 to-cyan-300"
-                    style={{ height: `${height}px` }}
-                  />
-                )
-              )}
+          <p className="mt-3 min-h-[24px] text-sm leading-6 text-white/75">
+            {transcript || "Your words will appear here..."}
+          </p>
+        </section>
 
-            </div>
+        {/* MICROPHONE */}
+        <div className="flex flex-1 flex-col items-center justify-center py-7">
 
-          </section>
+          <button
+            onClick={toggleListening}
+            className={`relative flex h-28 w-28 items-center justify-center rounded-full transition-all duration-300 ${
+              isListening
+                ? "scale-110 bg-gradient-to-br from-violet-500 to-cyan-400 shadow-[0_0_80px_rgba(139,92,246,0.65)]"
+                : "bg-gradient-to-br from-violet-600 to-blue-600 shadow-[0_0_55px_rgba(79,70,229,0.45)]"
+            }`}
+          >
+            {isListening && (
+              <span className="absolute inset-[-12px] animate-ping rounded-full border border-violet-400/30" />
+            )}
 
-          {/* USER TRANSCRIPT */}
-          {transcript && (
-            <section className="mx-auto mt-5 max-w-[350px] rounded-[18px] border border-violet-300/20 bg-white/5 px-4 py-3">
+            <span className="absolute inset-2 rounded-full border border-white/20" />
 
-              <p className="text-[9px] uppercase tracking-wider text-violet-300">
-                You said
-              </p>
+            {/* SVG MICROPHONE */}
+            <svg
+              width="38"
+              height="38"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect
+                x="9"
+                y="2"
+                width="6"
+                height="12"
+                rx="3"
+              />
 
-              <p className="mt-1 text-[12px] leading-5 text-white/90">
-                {transcript}
-              </p>
+              <path d="M5 10a7 7 0 0 0 14 0" />
+              <path d="M12 17v5" />
+              <path d="M8 22h8" />
+            </svg>
+          </button>
 
-            </section>
-          )}
+          <p className="mt-5 text-sm font-semibold text-white">
+            {isListening ? "I'm listening..." : "Tap to speak"}
+          </p>
 
-          {/* BROWSER WARNING */}
-          {!isSupported && (
-            <div className="mx-auto mt-5 max-w-[330px] rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-center text-[11px] text-red-200">
-              Voice recognition is not supported in this browser.
-              Please try Chrome on your phone.
-            </div>
-          )}
+          <p className="mt-1 text-xs text-white/40">
+            {isListening
+              ? "Tap the microphone when you finish"
+              : "Speak naturally in English"}
+          </p>
 
-          {/* PRACTICE TIPS */}
-          <section className="mt-[24px] rounded-[19px] border border-white/10 bg-[#14234c]/80 px-4 py-4 shadow-[0_10px_30px_rgba(0,0,0,.2)] backdrop-blur-xl">
+          {/* LIVE WAVEFORM */}
+          <div className="mt-5 flex h-8 items-center gap-1">
+            {[12, 20, 28, 18, 25, 14, 30, 20, 12, 24, 16].map(
+              (height, index) => (
+                <span
+                  key={index}
+                  className={`w-[3px] rounded-full transition-all ${
+                    isListening
+                      ? "animate-pulse bg-violet-400"
+                      : "bg-white/15"
+                  }`}
+                  style={{ height: `${height}px` }}
+                />
+              )
+            )}
+          </div>
+        </div>
 
-            <div className="flex items-center gap-3">
-
-              <div className="flex h-[39px] w-[39px] shrink-0 items-center justify-center rounded-full bg-[#24365f] text-[21px] shadow-inner">
-                💡
-              </div>
-
+        {/* YOUR RECORDING */}
+        {audioUrl && (
+          <section className="mb-5 rounded-[22px] border border-violet-400/20 bg-violet-500/[0.08] p-4">
+            <div className="mb-3 flex items-center justify-between">
               <div>
-
-                <h2 className="text-[12px] font-semibold">
-                  Practice tips
-                </h2>
-
-                <p className="mt-[3px] text-[10px] leading-[15px] text-white/55">
-                  Try to speak naturally.
-                  <br />
-                  There’s no right or wrong answer.
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-violet-300">
+                  Your recording
                 </p>
 
+                <p className="mt-1 text-xs text-white/40">
+                  Listen to what you said
+                </p>
               </div>
 
+              <span className="text-xl">🔊</span>
             </div>
 
+            <audio
+              controls
+              src={audioUrl}
+              className="w-full"
+            />
           </section>
+        )}
 
-          {/* BOTTOM NAV */}
-          <nav className="mt-5 flex items-center justify-between border-t border-white/10 pb-5 pt-4">
+        {/* PRACTICE TIPS */}
+        <section className="mb-5 rounded-[22px] border border-white/10 bg-white/[0.04] p-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/40">
+            Practice tips
+          </p>
 
-            <button
-              onClick={goBack}
-              className="flex flex-col items-center gap-1 text-white/40"
-            >
-              <span className="text-[18px]">⌂</span>
-              <span className="text-[9px]">Home</span>
-            </button>
+          <div className="mt-3 space-y-2 text-xs text-white/55">
+            <p>• Speak naturally — don't worry about mistakes.</p>
+            <p>• Try to answer in complete sentences.</p>
+            <p>• You can listen to your recording afterwards.</p>
+          </div>
+        </section>
 
-            <button className="flex flex-col items-center gap-1 text-white/40">
-              <span className="text-[18px]">◌</span>
-              <span className="text-[9px]">Practice</span>
-            </button>
+        {/* UNSUPPORTED WARNING */}
+        {!isSupported && (
+          <div className="mb-5 rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-center text-xs text-red-200">
+            Speech recognition is not supported in this browser.
+            Please try Chrome.
+          </div>
+        )}
 
-            <button className="flex flex-col items-center gap-1 text-violet-300">
-              <span className="text-[19px]">◉</span>
-              <span className="text-[9px]">SpeakMate</span>
-            </button>
+        {/* BOTTOM NAV */}
+        <nav className="flex items-center justify-around rounded-[25px] border border-white/10 bg-white/[0.05] px-2 py-3 backdrop-blur">
+          <button className="flex flex-col items-center gap-1 text-white/45">
+            <span>⌂</span>
+            <span className="text-[9px]">Home</span>
+          </button>
 
-            <button className="flex flex-col items-center gap-1 text-white/40">
-              <span className="text-[18px]">▥</span>
-              <span className="text-[9px]">Progress</span>
-            </button>
+          <button className="flex flex-col items-center gap-1 text-white/45">
+            <span>✦</span>
+            <span className="text-[9px]">Practice</span>
+          </button>
 
-            <button className="flex flex-col items-center gap-1 text-white/40">
-              <span className="text-[18px]">♙</span>
-              <span className="text-[9px]">Profile</span>
-            </button>
+          <button className="flex flex-col items-center gap-1 text-violet-300">
+            <span>🎙</span>
+            <span className="text-[9px]">SpeakMate</span>
+          </button>
 
-          </nav>
+          <button className="flex flex-col items-center gap-1 text-white/45">
+            <span>◔</span>
+            <span className="text-[9px]">Progress</span>
+          </button>
 
-        </div>
+          <button className="flex flex-col items-center gap-1 text-white/45">
+            <span>○</span>
+            <span className="text-[9px]">Profile</span>
+          </button>
+        </nav>
       </div>
     </main>
   );
-    }
+      }
