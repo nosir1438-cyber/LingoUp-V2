@@ -1,12 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export default function SpeakMate() {
   const [isListening, setIsListening] = useState(false);
+  const [isSupported, setIsSupported] = useState(true);
+
+  const recognitionRef = useRef<any>(null);
 
   const goBack = () => {
     window.history.back();
+  };
+
+  const startListening = () => {
+    const SpeechRecognition =
+      window.SpeechRecognition ||
+      window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setIsSupported(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+
+    recognition.lang = "en-US";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
+    recognition.onresult = (event: any) => {
+      let transcript = "";
+
+      for (
+        let i = event.resultIndex;
+        i < event.results.length;
+        i++
+      ) {
+        transcript += event.results[i][0].transcript;
+      }
+
+      console.log("User said:", transcript);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current = null;
+    }
+
+    setIsListening(false);
+  };
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
   };
 
   return (
@@ -28,6 +94,7 @@ export default function SpeakMate() {
 
           {/* HEADER */}
           <header className="flex items-center justify-between pt-5">
+
             <button
               onClick={goBack}
               className="flex h-9 w-9 items-center justify-center text-[29px] font-light text-white"
@@ -52,12 +119,13 @@ export default function SpeakMate() {
             >
               ⋮
             </button>
+
           </header>
 
           {/* AI MESSAGE */}
           <section className="mt-9 flex items-start gap-3">
 
-            {/* AI ROBOT AVATAR */}
+            {/* AI AVATAR */}
             <div className="relative mt-1 flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border border-violet-300/50 bg-[#0b1741] shadow-[0_0_25px_rgba(93,92,255,0.35)]">
 
               <div className="absolute inset-[5px] rounded-full bg-gradient-to-br from-violet-500/80 to-blue-400/70 opacity-70 blur-[2px]" />
@@ -88,7 +156,7 @@ export default function SpeakMate() {
             </div>
           </section>
 
-          {/* VOICE MESSAGE */}
+          {/* AI VOICE */}
           <section className="ml-[61px] mt-3 flex h-[43px] w-[245px] items-center rounded-[14px] bg-gradient-to-r from-[#744cff] via-[#625eff] to-[#318dfd] px-3 shadow-[0_8px_25px_rgba(66,77,255,.25)]">
 
             <button
@@ -122,12 +190,12 @@ export default function SpeakMate() {
           <section className="mt-[74px] flex flex-col items-center">
 
             <button
-              onClick={() => setIsListening((value) => !value)}
+              onClick={toggleListening}
               className="relative flex h-[126px] w-[126px] items-center justify-center rounded-full"
               aria-label="Speak"
             >
 
-              {/* OUTER GLOW */}
+              {/* OUTER RINGS */}
               <span className="absolute inset-[-18px] rounded-full border border-blue-400/10" />
 
               <span className="absolute inset-[-10px] rounded-full border border-violet-400/20" />
@@ -141,13 +209,13 @@ export default function SpeakMate() {
               {/* GLOW */}
               <span className="absolute inset-[3px] rounded-full bg-gradient-to-br from-violet-600/60 via-blue-500/40 to-cyan-400/60 blur-[10px]" />
 
-              {/* MAIN GLOWING ORB */}
+              {/* MAIN ORB */}
               <span className="absolute inset-[12px] rounded-full bg-gradient-to-br from-[#b35cff] via-[#6658ff] to-[#20c5ff] shadow-[inset_0_0_25px_rgba(255,255,255,.4),0_0_45px_rgba(80,100,255,.6)]" />
 
-              {/* INNER GLASS */}
+              {/* GLASS */}
               <span className="absolute inset-[21px] rounded-full border border-white/45 bg-white/10 shadow-[inset_0_0_18px_rgba(255,255,255,.2)] backdrop-blur-md" />
 
-              {/* REAL SVG MICROPHONE */}
+              {/* MICROPHONE ICON */}
               <svg
                 className="relative z-10 h-[48px] w-[48px] text-white drop-shadow-[0_0_12px_rgba(255,255,255,.9)]"
                 viewBox="0 0 24 24"
@@ -195,6 +263,14 @@ export default function SpeakMate() {
 
           </section>
 
+          {/* NOT SUPPORTED */}
+          {!isSupported && (
+            <div className="mx-auto mt-5 max-w-[330px] rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-center text-[11px] text-red-200">
+              Voice recognition is not supported in this browser.
+              Please try Chrome on your phone.
+            </div>
+          )}
+
           {/* PRACTICE TIPS */}
           <section className="mt-[24px] rounded-[19px] border border-white/10 bg-[#14234c]/80 px-4 py-4 shadow-[0_10px_30px_rgba(0,0,0,.2)] backdrop-blur-xl">
 
@@ -220,7 +296,7 @@ export default function SpeakMate() {
 
           </section>
 
-          {/* BOTTOM NAVIGATION */}
+          {/* BOTTOM NAV */}
           <nav className="mt-5 flex items-center justify-between border-t border-white/10 pb-5 pt-4">
 
             <button
@@ -257,4 +333,4 @@ export default function SpeakMate() {
       </div>
     </main>
   );
-                }
+          }
