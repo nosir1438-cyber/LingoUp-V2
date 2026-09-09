@@ -14,8 +14,8 @@ export default function SpeakMate() {
 
   const startListening = () => {
     const SpeechRecognition =
-      window.SpeechRecognition ||
-      window.webkitSpeechRecognition;
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
       setIsSupported(false);
@@ -55,7 +55,13 @@ export default function SpeakMate() {
     };
 
     recognitionRef.current = recognition;
-    recognition.start();
+
+    try {
+      recognition.start();
+    } catch (error) {
+      console.log("Speech recognition error:", error);
+      setIsListening(false);
+    }
   };
 
   const stopListening = () => {
@@ -94,7 +100,6 @@ export default function SpeakMate() {
 
           {/* HEADER */}
           <header className="flex items-center justify-between pt-5">
-
             <button
               onClick={goBack}
               className="flex h-9 w-9 items-center justify-center text-[29px] font-light text-white"
@@ -119,7 +124,6 @@ export default function SpeakMate() {
             >
               ⋮
             </button>
-
           </header>
 
           {/* AI MESSAGE */}
@@ -156,7 +160,7 @@ export default function SpeakMate() {
             </div>
           </section>
 
-          {/* AI VOICE */}
+          {/* AI VOICE MESSAGE */}
           <section className="ml-[61px] mt-3 flex h-[43px] w-[245px] items-center rounded-[14px] bg-gradient-to-r from-[#744cff] via-[#625eff] to-[#318dfd] px-3 shadow-[0_8px_25px_rgba(66,77,255,.25)]">
 
             <button
@@ -195,7 +199,7 @@ export default function SpeakMate() {
               aria-label="Speak"
             >
 
-              {/* OUTER RINGS */}
+              {/* OUTER GLOW */}
               <span className="absolute inset-[-18px] rounded-full border border-blue-400/10" />
 
               <span className="absolute inset-[-10px] rounded-full border border-violet-400/20" />
@@ -212,10 +216,10 @@ export default function SpeakMate() {
               {/* MAIN ORB */}
               <span className="absolute inset-[12px] rounded-full bg-gradient-to-br from-[#b35cff] via-[#6658ff] to-[#20c5ff] shadow-[inset_0_0_25px_rgba(255,255,255,.4),0_0_45px_rgba(80,100,255,.6)]" />
 
-              {/* GLASS */}
+              {/* INNER GLASS */}
               <span className="absolute inset-[21px] rounded-full border border-white/45 bg-white/10 shadow-[inset_0_0_18px_rgba(255,255,255,.2)] backdrop-blur-md" />
 
-              {/* MICROPHONE ICON */}
+              {/* MICROPHONE SVG */}
               <svg
                 className="relative z-10 h-[48px] w-[48px] text-white drop-shadow-[0_0_12px_rgba(255,255,255,.9)]"
                 viewBox="0 0 24 24"
@@ -263,7 +267,7 @@ export default function SpeakMate() {
 
           </section>
 
-          {/* NOT SUPPORTED */}
+          {/* BROWSER WARNING */}
           {!isSupported && (
             <div className="mx-auto mt-5 max-w-[330px] rounded-2xl border border-red-400/20 bg-red-500/10 p-4 text-center text-[11px] text-red-200">
               Voice recognition is not supported in this browser.
@@ -296,7 +300,7 @@ export default function SpeakMate() {
 
           </section>
 
-          {/* BOTTOM NAV */}
+          {/* BOTTOM NAVIGATION */}
           <nav className="mt-5 flex items-center justify-between border-t border-white/10 pb-5 pt-4">
 
             <button
@@ -333,4 +337,4 @@ export default function SpeakMate() {
       </div>
     </main>
   );
-          }
+}
