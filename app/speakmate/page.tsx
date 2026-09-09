@@ -1,266 +1,204 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 export default function SpeakMate() {
-  const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [status, setStatus] = useState("Tap the microphone and start speaking");
-  const [supported, setSupported] = useState(true);
-
-  const recognitionRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setSupported(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setStatus("Listening...");
-    };
-
-    recognition.onresult = (event: any) => {
-      let text = "";
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        text += event.results[i][0].transcript;
-      }
-
-      setTranscript(text);
-    };
-
-    recognition.onerror = (event: any) => {
-      setIsListening(false);
-
-      if (event.error === "not-allowed") {
-        setStatus("Microphone permission was denied.");
-      } else if (event.error === "no-speech") {
-        setStatus("I didn't hear anything. Try again.");
-      } else {
-        setStatus("Something went wrong. Please try again.");
-      }
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-
-      if (transcript.trim()) {
-        setStatus("Got it. Your answer is ready.");
-      } else {
-        setStatus("Tap the microphone and start speaking");
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      recognition.stop();
-    };
-  }, [transcript]);
-
-  const toggleMicrophone = () => {
-    if (!supported) return;
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
-    setTranscript("");
-    setStatus("Listening...");
-
-    try {
-      recognitionRef.current?.start();
-    } catch {
-      // Prevent duplicate start errors.
-    }
-  };
-
-  const clearAnswer = () => {
-    setTranscript("");
-    setStatus("Tap the microphone and start speaking");
-  };
+  const [listening, setListening] = useState(false);
 
   return (
-    <main className="min-h-screen bg-[#070A18] text-white">
-      {/* Cosmic background */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -left-32 top-[-100px] h-80 w-80 rounded-full bg-violet-600/20 blur-[100px]" />
-        <div className="absolute right-[-120px] top-[120px] h-96 w-96 rounded-full bg-blue-500/20 blur-[120px]" />
-        <div className="absolute bottom-[-100px] left-[20%] h-80 w-80 rounded-full bg-cyan-500/10 blur-[120px]" />
+    <main className="min-h-screen bg-[#030817] text-white">
+      {/* Background glow */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-32 left-1/3 h-96 w-96 rounded-full bg-blue-700/20 blur-[130px]" />
+        <div className="absolute top-1/3 -left-32 h-96 w-96 rounded-full bg-violet-600/20 blur-[130px]" />
+        <div className="absolute bottom-[-100px] right-[-80px] h-96 w-96 rounded-full bg-blue-500/20 blur-[130px]" />
       </div>
 
-      <div className="relative mx-auto min-h-screen max-w-md px-5 pb-8 pt-6">
-        {/* Header */}
-        <header className="flex items-center justify-between">
-          <button
-            onClick={() => window.history.back()}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-xl"
-            aria-label="Go back"
-          >
-            ←
+      <div className="relative mx-auto min-h-screen max-w-[430px] overflow-hidden bg-[#06102c]">
+
+        {/* Top */}
+        <header className="flex items-center justify-between px-5 pt-5">
+          <button className="text-2xl text-white/90">
+            ‹
           </button>
 
           <div className="text-center">
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-violet-300">
-              LingoUp
+            <h1 className="text-[17px] font-bold">SpeakMate</h1>
+            <p className="mt-1 text-[10px] text-white/50">
+              Real conversations. Real progress.
             </p>
-            <h1 className="mt-1 text-xl font-bold">SpeakMate</h1>
           </div>
 
-          <button
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5"
-            aria-label="Settings"
-          >
-            ⚙
+          <button className="text-xl text-white/70">
+            ⋮
           </button>
         </header>
 
-        {/* AI status */}
-        <section className="mt-8 rounded-[30px] border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur-xl">
-          <div className="flex items-center gap-4">
-            <div className="relative flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500 via-indigo-500 to-blue-500 shadow-lg shadow-violet-500/20">
-              <div className="text-2xl">✦</div>
+        {/* Conversation area */}
+        <section className="relative mx-4 mt-7 min-h-[690px] overflow-hidden rounded-[34px] border border-blue-400/20 bg-[#071438]">
 
-              <span
-                className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-[#101326] ${
-                  isListening ? "bg-green-400" : "bg-white/40"
-                }`}
-              />
-            </div>
-
-            <div>
-              <p className="text-sm text-white/50">Your AI speaking partner</p>
-              <h2 className="mt-1 text-xl font-bold">Speak naturally</h2>
-            </div>
+          {/* Wave background */}
+          <div className="absolute inset-0 opacity-80">
+            <div className="absolute left-[-25%] top-[40%] h-32 w-[150%] rotate-[18deg] rounded-[50%] border-[25px] border-violet-500/20 blur-[12px]" />
+            <div className="absolute left-[-20%] top-[45%] h-24 w-[150%] rotate-[18deg] rounded-[50%] border-[18px] border-blue-400/20 blur-[10px]" />
+            <div className="absolute left-[-30%] top-[52%] h-28 w-[160%] rotate-[-10deg] rounded-[50%] border-[16px] border-fuchsia-500/20 blur-[12px]" />
           </div>
 
-          <div className="mt-6 rounded-2xl bg-black/20 p-4">
-            <p className="text-sm leading-6 text-white/60">{status}</p>
-          </div>
-        </section>
+          <div className="relative z-10 px-5 pt-6">
 
-        {/* Conversation */}
-        <section className="mt-5 rounded-[30px] border border-white/10 bg-white/[0.045] p-5 backdrop-blur-xl">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Your answer</h2>
+            {/* AI message */}
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-blue-300/40 bg-gradient-to-br from-indigo-500 to-blue-400 shadow-[0_0_25px_rgba(99,102,241,.35)]">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#071438] text-sm">
+                  ✦
+                </div>
+              </div>
 
-            {transcript && (
-              <button
-                onClick={clearAnswer}
-                className="text-xs font-medium text-white/40 transition hover:text-white"
-              >
-                Clear
+              <div className="rounded-[20px] rounded-tl-md bg-white px-5 py-4 text-[#14204a] shadow-xl">
+                <p className="text-[14px] font-semibold">
+                  Hi Ruxsora! 👋
+                </p>
+
+                <p className="mt-2 text-[14px] leading-5">
+                  What do you usually do
+                  <br />
+                  in your free time?
+                </p>
+              </div>
+            </div>
+
+            {/* Voice message */}
+            <div className="ml-14 mt-4 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-violet-600 to-blue-500 px-4 py-3 shadow-lg shadow-blue-900/30">
+              <button className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
+                ▶
               </button>
-            )}
-          </div>
 
-          <div className="mt-4 min-h-[150px] rounded-2xl border border-white/10 bg-black/20 p-4">
-            {transcript ? (
-              <p className="text-[16px] leading-7 text-white/90">
-                {transcript}
+              <div className="flex flex-1 items-center gap-[3px]">
+                {[10, 18, 12, 25, 15, 29, 12, 21, 30, 15, 23, 10, 18, 26, 13, 22, 16, 28, 11, 20].map(
+                  (height, i) => (
+                    <span
+                      key={i}
+                      className="w-[2px] rounded-full bg-white/80"
+                      style={{ height }}
+                    />
+                  )
+                )}
+              </div>
+
+              <span className="text-[11px] font-medium">0:12</span>
+            </div>
+
+            {/* Microphone */}
+            <div className="mt-24 flex flex-col items-center">
+
+              <button
+                onClick={() => setListening(!listening)}
+                className={`relative flex h-32 w-32 items-center justify-center rounded-full transition-all duration-300 ${
+                  listening
+                    ? "scale-110 shadow-[0_0_80px_rgba(79,70,229,.7)]"
+                    : "shadow-[0_0_55px_rgba(59,130,246,.45)]"
+                }`}
+              >
+                <div className="absolute inset-0 rounded-full border border-blue-300/50" />
+                <div className="absolute inset-3 rounded-full border border-violet-400/50" />
+
+                <div className="absolute inset-6 rounded-full bg-gradient-to-br from-violet-500 via-blue-500 to-cyan-400 shadow-inner" />
+
+                <span className="relative z-10 text-4xl">
+                  🎙
+                </span>
+              </button>
+
+              <p className="mt-6 text-[15px] font-semibold">
+                {listening ? "I'm listening..." : "Tap to speak"}
               </p>
-            ) : (
-              <p className="text-sm leading-6 text-white/30">
-                Your spoken answer will appear here...
-              </p>
-            )}
+
+              {/* Audio waveform */}
+              <div className="mt-5 flex h-10 items-center gap-[3px]">
+                {[8, 18, 28, 15, 24, 12, 30, 18, 34, 14, 25, 10, 29, 16, 23, 11, 31, 18, 27, 12, 21, 9, 26, 15, 22].map(
+                  (height, i) => (
+                    <span
+                      key={i}
+                      className="w-[2px] rounded-full bg-gradient-to-t from-blue-400 to-violet-400"
+                      style={{ height }}
+                    />
+                  )
+                )}
+              </div>
+            </div>
+
+            {/* Tip */}
+            <div className="absolute bottom-24 left-5 right-5 rounded-2xl border border-blue-300/10 bg-blue-950/70 p-4 backdrop-blur-xl">
+              <div className="flex gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-xl">
+                  💡
+                </div>
+
+                <div>
+                  <p className="text-[13px] font-semibold">
+                    Practice tips
+                  </p>
+
+                  <p className="mt-1 text-[11px] leading-4 text-white/55">
+                    Try to speak naturally.
+                    <br />
+                    There’s no right or wrong answer.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Bottom controls */}
+            <div className="absolute bottom-4 left-5 right-5 flex items-center rounded-2xl border border-white/10 bg-[#07183c]/90 p-2 backdrop-blur-xl">
+
+              <button className="flex flex-1 items-center justify-center gap-2 py-3 text-[12px] text-white/70">
+                <span className="text-lg">↻</span>
+                Repeat
+              </button>
+
+              <div className="h-7 w-px bg-white/10" />
+
+              <button className="flex flex-1 items-center justify-center gap-2 py-3 text-[12px] text-white/70">
+                <span className="text-lg">▷</span>
+                Skip
+              </button>
+
+              <div className="h-7 w-px bg-white/10" />
+
+              <button className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 py-3 text-[12px] font-semibold shadow-lg">
+                Next
+                <span className="text-lg">→</span>
+              </button>
+
+            </div>
           </div>
-        </section>
-
-        {/* Microphone */}
-        <section className="mt-7 flex flex-col items-center">
-          <button
-            onClick={toggleMicrophone}
-            disabled={!supported}
-            className={`relative flex h-24 w-24 items-center justify-center rounded-full transition-all duration-300 ${
-              isListening
-                ? "scale-110 bg-gradient-to-br from-violet-500 to-blue-500 shadow-[0_0_60px_rgba(99,102,241,0.45)]"
-                : "bg-gradient-to-br from-violet-600 to-blue-600 shadow-[0_0_40px_rgba(99,102,241,0.25)] hover:scale-105"
-            }`}
-          >
-            {isListening && (
-              <>
-                <span className="absolute inset-[-10px] animate-ping rounded-full border border-violet-400/30" />
-                <span className="absolute inset-[-18px] rounded-full border border-blue-400/10" />
-              </>
-            )}
-
-            <span className="relative text-3xl">
-              {isListening ? "■" : "🎙️"}
-            </span>
-          </button>
-
-          <p className="mt-4 text-sm font-medium text-white/60">
-            {isListening ? "Listening..." : "Tap to speak"}
-          </p>
-        </section>
-
-        {/* Unsupported browser message */}
-        {!supported && (
-          <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4 text-center text-sm leading-6 text-yellow-200">
-            Speech recognition is not available in this browser. Try opening
-            LingoUp in a browser that supports microphone speech recognition.
-          </div>
-        )}
-
-        {/* Goal */}
-        <section className="mt-8 rounded-[28px] border border-white/10 bg-gradient-to-br from-violet-500/10 to-blue-500/10 p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
-            Speaking goal
-          </p>
-
-          <h3 className="mt-2 text-lg font-bold">
-            Speak clearly and naturally
-          </h3>
-
-          <p className="mt-2 text-sm leading-6 text-white/45">
-            Don't worry about mistakes. Speak naturally and LingoUp will help
-            you improve step by step.
-          </p>
         </section>
 
         {/* Bottom navigation */}
-        <nav className="mt-8 grid grid-cols-5 rounded-[26px] border border-white/10 bg-white/[0.05] p-2 backdrop-blur-xl">
+        <nav className="mt-5 grid grid-cols-5 px-3 pb-5">
+
           {[
-            ["⌂", "Home", "/"],
-            ["◉", "Practice", "/practice"],
-            ["🎙", "Speak", "/speakmate"],
-            ["▥", "Progress", "/progress"],
-            ["◯", "Profile", "/profile"],
-          ].map(([icon, label, href]) => (
+            ["⌂", "Home"],
+            ["◌", "Practice"],
+            ["◉", "IELTS"],
+            ["▥", "Progress"],
+            ["♙", "Profile"],
+          ].map(([icon, label]) => (
             <button
               key={label}
-              onClick={() => {
-                window.location.href = href;
-              }}
-              className={`flex flex-col items-center gap-1 rounded-2xl px-1 py-3 text-[10px] transition ${
-                label === "Speak"
-                  ? "bg-white/10 text-violet-300"
-                  : "text-white/40 hover:bg-white/5 hover:text-white/70"
+              className={`flex flex-col items-center gap-1 py-2 ${
+                label === "Practice"
+                  ? "text-violet-300"
+                  : "text-white/35"
               }`}
             >
               <span className="text-lg">{icon}</span>
-              <span>{label}</span>
+              <span className="text-[9px]">{label}</span>
             </button>
           ))}
+
         </nav>
       </div>
     </main>
   );
-      }
+                }
