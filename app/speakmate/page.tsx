@@ -3,202 +3,224 @@
 import { useState } from "react";
 
 export default function SpeakMate() {
-  const [listening, setListening] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+
+  const goBack = () => {
+    window.history.back();
+  };
 
   return (
-    <main className="min-h-screen bg-[#030817] text-white">
-      {/* Background glow */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-32 left-1/3 h-96 w-96 rounded-full bg-blue-700/20 blur-[130px]" />
-        <div className="absolute top-1/3 -left-32 h-96 w-96 rounded-full bg-violet-600/20 blur-[130px]" />
-        <div className="absolute bottom-[-100px] right-[-80px] h-96 w-96 rounded-full bg-blue-500/20 blur-[130px]" />
-      </div>
+    <main className="min-h-screen bg-[#020817] text-white">
+      <div className="mx-auto min-h-screen max-w-[430px] overflow-hidden bg-[#061338]">
 
-      <div className="relative mx-auto min-h-screen max-w-[430px] overflow-hidden bg-[#06102c]">
+        {/* Background */}
+        <div className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div className="absolute left-[-180px] top-[250px] h-[400px] w-[650px] rotate-[15deg] rounded-[50%] border-[35px] border-violet-600/20 blur-[25px]" />
 
-        {/* Top */}
-        <header className="flex items-center justify-between px-5 pt-5">
-          <button className="text-2xl text-white/90">
-            ‹
-          </button>
+          <div className="absolute left-[-160px] top-[340px] h-[300px] w-[650px] rotate-[15deg] rounded-[50%] border-[25px] border-blue-500/20 blur-[20px]" />
 
-          <div className="text-center">
-            <h1 className="text-[17px] font-bold">SpeakMate</h1>
-            <p className="mt-1 text-[10px] text-white/50">
-              Real conversations. Real progress.
-            </p>
-          </div>
+          <div className="absolute right-[-200px] top-[470px] h-[300px] w-[650px] rotate-[-18deg] rounded-[50%] border-[25px] border-fuchsia-500/15 blur-[25px]" />
 
-          <button className="text-xl text-white/70">
-            ⋮
-          </button>
-        </header>
+          <div className="absolute bottom-[-180px] left-1/2 h-[400px] w-[500px] -translate-x-1/2 rounded-full bg-blue-600/10 blur-[120px]" />
+        </div>
 
-        {/* Conversation area */}
-        <section className="relative mx-4 mt-7 min-h-[690px] overflow-hidden rounded-[34px] border border-blue-400/20 bg-[#071438]">
+        <div className="relative z-10 min-h-screen px-5">
 
-          {/* Wave background */}
-          <div className="absolute inset-0 opacity-80">
-            <div className="absolute left-[-25%] top-[40%] h-32 w-[150%] rotate-[18deg] rounded-[50%] border-[25px] border-violet-500/20 blur-[12px]" />
-            <div className="absolute left-[-20%] top-[45%] h-24 w-[150%] rotate-[18deg] rounded-[50%] border-[18px] border-blue-400/20 blur-[10px]" />
-            <div className="absolute left-[-30%] top-[52%] h-28 w-[160%] rotate-[-10deg] rounded-[50%] border-[16px] border-fuchsia-500/20 blur-[12px]" />
-          </div>
+          {/* Header */}
+          <header className="flex items-center justify-between pt-5">
+            <button
+              onClick={goBack}
+              className="flex h-9 w-9 items-center justify-center text-[29px] font-light text-white"
+              aria-label="Back"
+            >
+              ‹
+            </button>
 
-          <div className="relative z-10 px-5 pt-6">
+            <div className="text-center">
+              <h1 className="text-[16px] font-semibold tracking-tight">
+                SpeakMate
+              </h1>
 
-            {/* AI message */}
-            <div className="flex items-start gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-blue-300/40 bg-gradient-to-br from-indigo-500 to-blue-400 shadow-[0_0_25px_rgba(99,102,241,.35)]">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#071438] text-sm">
-                  ✦
+              <p className="mt-1 text-[10px] text-white/55">
+                Real conversations. Real progress.
+              </p>
+            </div>
+
+            <button
+              className="flex h-9 w-9 items-center justify-center text-[22px] text-white/80"
+              aria-label="More"
+            >
+              ⋮
+            </button>
+          </header>
+
+          {/* AI message */}
+          <section className="mt-9 flex items-start gap-3">
+
+            {/* Robot */}
+            <div className="relative mt-1 flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-full border border-violet-300/50 bg-[#0b1741] shadow-[0_0_25px_rgba(93,92,255,0.35)]">
+
+              <div className="absolute inset-[5px] rounded-full bg-gradient-to-br from-violet-500/80 to-blue-400/70 opacity-70 blur-[2px]" />
+
+              <div className="relative flex h-[31px] w-[31px] items-center justify-center rounded-[10px] border border-cyan-200/60 bg-[#07132f] shadow-[0_0_12px_rgba(72,220,255,.4)]">
+                <div className="flex gap-[5px]">
+                  <span className="h-[5px] w-[5px] rounded-full bg-cyan-300" />
+                  <span className="h-[5px] w-[5px] rounded-full bg-cyan-300" />
                 </div>
               </div>
-
-              <div className="rounded-[20px] rounded-tl-md bg-white px-5 py-4 text-[#14204a] shadow-xl">
-                <p className="text-[14px] font-semibold">
-                  Hi Ruxsora! 👋
-                </p>
-
-                <p className="mt-2 text-[14px] leading-5">
-                  What do you usually do
-                  <br />
-                  in your free time?
-                </p>
-              </div>
             </div>
 
-            {/* Voice message */}
-            <div className="ml-14 mt-4 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-violet-600 to-blue-500 px-4 py-3 shadow-lg shadow-blue-900/30">
-              <button className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20">
-                ▶
-              </button>
+            {/* Message */}
+            <div className="max-w-[255px] rounded-[19px] rounded-tl-[5px] bg-[#f7f8ff] px-[18px] py-[13px] shadow-[0_8px_25px_rgba(0,0,0,.18)]">
 
-              <div className="flex flex-1 items-center gap-[3px]">
-                {[10, 18, 12, 25, 15, 29, 12, 21, 30, 15, 23, 10, 18, 26, 13, 22, 16, 28, 11, 20].map(
-                  (height, i) => (
-                    <span
-                      key={i}
-                      className="w-[2px] rounded-full bg-white/80"
-                      style={{ height }}
-                    />
-                  )
-                )}
-              </div>
-
-              <span className="text-[11px] font-medium">0:12</span>
-            </div>
-
-            {/* Microphone */}
-            <div className="mt-24 flex flex-col items-center">
-
-              <button
-                onClick={() => setListening(!listening)}
-                className={`relative flex h-32 w-32 items-center justify-center rounded-full transition-all duration-300 ${
-                  listening
-                    ? "scale-110 shadow-[0_0_80px_rgba(79,70,229,.7)]"
-                    : "shadow-[0_0_55px_rgba(59,130,246,.45)]"
-                }`}
-              >
-                <div className="absolute inset-0 rounded-full border border-blue-300/50" />
-                <div className="absolute inset-3 rounded-full border border-violet-400/50" />
-
-                <div className="absolute inset-6 rounded-full bg-gradient-to-br from-violet-500 via-blue-500 to-cyan-400 shadow-inner" />
-
-                <span className="relative z-10 text-4xl">
-                  🎙
-                </span>
-              </button>
-
-              <p className="mt-6 text-[15px] font-semibold">
-                {listening ? "I'm listening..." : "Tap to speak"}
+              <p className="text-[12px] font-semibold leading-5 text-[#15204a]">
+                Hi Ruxsora! 👋
               </p>
 
-              {/* Audio waveform */}
-              <div className="mt-5 flex h-10 items-center gap-[3px]">
-                {[8, 18, 28, 15, 24, 12, 30, 18, 34, 14, 25, 10, 29, 16, 23, 11, 31, 18, 27, 12, 21, 9, 26, 15, 22].map(
-                  (height, i) => (
-                    <span
-                      key={i}
-                      className="w-[2px] rounded-full bg-gradient-to-t from-blue-400 to-violet-400"
-                      style={{ height }}
-                    />
-                  )
-                )}
-              </div>
+              <p className="mt-[1px] text-[12px] leading-[18px] text-[#15204a]">
+                What do you usually do
+                <br />
+                in your free time?
+              </p>
             </div>
+          </section>
 
-            {/* Tip */}
-            <div className="absolute bottom-24 left-5 right-5 rounded-2xl border border-blue-300/10 bg-blue-950/70 p-4 backdrop-blur-xl">
-              <div className="flex gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/10 text-xl">
-                  💡
-                </div>
+          {/* Voice message */}
+          <section className="ml-[61px] mt-3 flex h-[43px] w-[245px] items-center rounded-[14px] bg-gradient-to-r from-[#744cff] via-[#625eff] to-[#318dfd] px-3 shadow-[0_8px_25px_rgba(66,77,255,.25)]">
 
-                <div>
-                  <p className="text-[13px] font-semibold">
-                    Practice tips
-                  </p>
-
-                  <p className="mt-1 text-[11px] leading-4 text-white/55">
-                    Try to speak naturally.
-                    <br />
-                    There’s no right or wrong answer.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom controls */}
-            <div className="absolute bottom-4 left-5 right-5 flex items-center rounded-2xl border border-white/10 bg-[#07183c]/90 p-2 backdrop-blur-xl">
-
-              <button className="flex flex-1 items-center justify-center gap-2 py-3 text-[12px] text-white/70">
-                <span className="text-lg">↻</span>
-                Repeat
-              </button>
-
-              <div className="h-7 w-px bg-white/10" />
-
-              <button className="flex flex-1 items-center justify-center gap-2 py-3 text-[12px] text-white/70">
-                <span className="text-lg">▷</span>
-                Skip
-              </button>
-
-              <div className="h-7 w-px bg-white/10" />
-
-              <button className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-violet-500 to-blue-500 py-3 text-[12px] font-semibold shadow-lg">
-                Next
-                <span className="text-lg">→</span>
-              </button>
-
-            </div>
-          </div>
-        </section>
-
-        {/* Bottom navigation */}
-        <nav className="mt-5 grid grid-cols-5 px-3 pb-5">
-
-          {[
-            ["⌂", "Home"],
-            ["◌", "Practice"],
-            ["◉", "IELTS"],
-            ["▥", "Progress"],
-            ["♙", "Profile"],
-          ].map(([icon, label]) => (
             <button
-              key={label}
-              className={`flex flex-col items-center gap-1 py-2 ${
-                label === "Practice"
-                  ? "text-violet-300"
-                  : "text-white/35"
-              }`}
+              className="flex h-[27px] w-[27px] shrink-0 items-center justify-center rounded-full bg-white/20 text-[10px]"
+              aria-label="Play"
             >
-              <span className="text-lg">{icon}</span>
-              <span className="text-[9px]">{label}</span>
+              ▶
             </button>
-          ))}
 
-        </nav>
+            <div className="ml-3 flex h-7 flex-1 items-center justify-center gap-[2px]">
+              {[7, 12, 17, 10, 22, 13, 18, 25, 11, 20, 14, 27, 10, 18, 23, 13, 20, 9, 17, 25, 12, 19, 8, 15].map(
+                (height, index) => (
+                  <span
+                    key={index}
+                    className="w-[2px] rounded-full bg-white/85"
+                    style={{ height: `${height}px` }}
+                  />
+                )
+              )}
+            </div>
+
+            <span className="ml-2 text-[10px] font-medium">0:12</span>
+          </section>
+
+          {/* Main microphone area */}
+          <section className="mt-[74px] flex flex-col items-center">
+
+            <button
+              onClick={() => setIsListening((value) => !value)}
+              className="relative flex h-[126px] w-[126px] items-center justify-center rounded-full"
+              aria-label="Speak"
+            >
+
+              {/* Outer rings */}
+              <span className="absolute inset-[-15px] rounded-full border border-blue-400/10" />
+
+              <span className="absolute inset-[-8px] rounded-full border border-violet-400/20" />
+
+              <span
+                className={`absolute inset-0 rounded-full border border-cyan-300/40 ${
+                  isListening ? "animate-pulse" : ""
+                }`}
+              />
+
+              {/* Glow */}
+              <span className="absolute inset-[5px] rounded-full bg-gradient-to-br from-violet-600/50 via-blue-500/30 to-cyan-400/50 blur-[9px]" />
+
+              {/* Main orb */}
+              <span className="absolute inset-[13px] rounded-full bg-gradient-to-br from-[#a85cff] via-[#6658ff] to-[#28b9ff] shadow-[inset_0_0_25px_rgba(255,255,255,.35),0_0_40px_rgba(80,100,255,.5)]" />
+
+              {/* Inner glass */}
+              <span className="absolute inset-[22px] rounded-full border border-white/40 bg-gradient-to-br from-white/15 to-white/5 backdrop-blur-md" />
+
+              {/* Microphone */}
+              <span className="relative z-10 text-[42px] leading-none">
+                🎙️
+              </span>
+            </button>
+
+            <p className="mt-[27px] text-[13px] font-medium tracking-tight text-white">
+              {isListening ? "I'm listening..." : "Tap to speak"}
+            </p>
+
+            {/* Waveform */}
+            <div className="mt-[18px] flex h-[34px] items-center gap-[3px]">
+              {[6, 11, 17, 10, 21, 14, 26, 11, 19, 28, 14, 23, 31, 17, 26, 12, 22, 30, 16, 25, 11, 19, 28, 13, 21, 9, 16, 25, 12, 20].map(
+                (height, index) => (
+                  <span
+                    key={index}
+                    className="w-[2px] rounded-full bg-gradient-to-t from-blue-400 via-violet-400 to-cyan-300"
+                    style={{ height: `${height}px` }}
+                  />
+                )
+              )}
+            </div>
+          </section>
+
+          {/* Practice tips */}
+          <section className="mt-[24px] rounded-[19px] border border-white/10 bg-[#14234c]/80 px-4 py-4 shadow-[0_10px_30px_rgba(0,0,0,.2)] backdrop-blur-xl">
+
+            <div className="flex items-center gap-3">
+
+              <div className="flex h-[39px] w-[39px] shrink-0 items-center justify-center rounded-full bg-[#24365f] text-[21px] shadow-inner">
+                💡
+              </div>
+
+              <div>
+                <h2 className="text-[12px] font-semibold">
+                  Practice tips
+                </h2>
+
+                <p className="mt-[3px] text-[10px] leading-[15px] text-white/55">
+                  Try to speak naturally.
+                  <br />
+                  There’s no right or wrong answer.
+                </p>
+              </div>
+
+            </div>
+          </section>
+
+          {/* Bottom navigation */}
+          <nav className="mt-5 flex items-center justify-between border-t border-white/10 pb-5 pt-4">
+
+            <button
+              onClick={goBack}
+              className="flex flex-col items-center gap-1 text-white/40"
+            >
+              <span className="text-[18px]">⌂</span>
+              <span className="text-[9px]">Home</span>
+            </button>
+
+            <button className="flex flex-col items-center gap-1 text-white/40">
+              <span className="text-[18px]">◌</span>
+              <span className="text-[9px]">Practice</span>
+            </button>
+
+            <button className="flex flex-col items-center gap-1 text-violet-300">
+              <span className="text-[19px]">🎙</span>
+              <span className="text-[9px]">SpeakMate</span>
+            </button>
+
+            <button className="flex flex-col items-center gap-1 text-white/40">
+              <span className="text-[18px]">▥</span>
+              <span className="text-[9px]">Progress</span>
+            </button>
+
+            <button className="flex flex-col items-center gap-1 text-white/40">
+              <span className="text-[18px]">♙</span>
+              <span className="text-[9px]">Profile</span>
+            </button>
+
+          </nav>
+        </div>
       </div>
     </main>
   );
-                }
+                    }
