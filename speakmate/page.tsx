@@ -1,266 +1,242 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 export default function SpeakMate() {
   const [isListening, setIsListening] = useState(false);
-  const [transcript, setTranscript] = useState("");
-  const [status, setStatus] = useState("Tap the microphone and start speaking");
-  const [supported, setSupported] = useState(true);
-
-  const recognitionRef = useRef<any>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setSupported(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-
-    recognition.continuous = false;
-    recognition.interimResults = true;
-    recognition.lang = "en-US";
-
-    recognition.onstart = () => {
-      setIsListening(true);
-      setStatus("Listening...");
-    };
-
-    recognition.onresult = (event: any) => {
-      let text = "";
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        text += event.results[i][0].transcript;
-      }
-
-      setTranscript(text);
-    };
-
-    recognition.onerror = (event: any) => {
-      setIsListening(false);
-
-      if (event.error === "not-allowed") {
-        setStatus("Microphone permission was denied.");
-      } else if (event.error === "no-speech") {
-        setStatus("I didn't hear anything. Try again.");
-      } else {
-        setStatus("Something went wrong. Please try again.");
-      }
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-
-      if (transcript.trim()) {
-        setStatus("Got it. Your answer is ready.");
-      } else {
-        setStatus("Tap the microphone and start speaking");
-      }
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      recognition.stop();
-    };
-  }, [transcript]);
-
-  const toggleMicrophone = () => {
-    if (!supported) return;
-
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-
-    setTranscript("");
-    setStatus("Listening...");
-
-    try {
-      recognitionRef.current?.start();
-    } catch {
-      // Prevent duplicate start errors.
-    }
-  };
-
-  const clearAnswer = () => {
-    setTranscript("");
-    setStatus("Tap the microphone and start speaking");
-  };
 
   return (
-    <main className="min-h-screen bg-[#070A18] text-white">
-      {/* Cosmic background */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden">
-        <div className="absolute -left-32 top-[-100px] h-80 w-80 rounded-full bg-violet-600/20 blur-[100px]" />
-        <div className="absolute right-[-120px] top-[120px] h-96 w-96 rounded-full bg-blue-500/20 blur-[120px]" />
-        <div className="absolute bottom-[-100px] left-[20%] h-80 w-80 rounded-full bg-cyan-500/10 blur-[120px]" />
-      </div>
+    <main className="min-h-screen overflow-hidden bg-[#060B25] text-white">
+      <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-5 pt-6">
 
-      <div className="relative mx-auto min-h-screen max-w-md px-5 pb-8 pt-6">
-        {/* Header */}
-        <header className="flex items-center justify-between">
+        {/* HEADER */}
+        <div className="flex items-center justify-between">
           <button
             onClick={() => window.history.back()}
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5 text-xl"
-            aria-label="Go back"
+            className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05]"
           >
-            ←
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M15 18l-6-6 6-6"
+                stroke="white"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
           </button>
 
           <div className="text-center">
-            <p className="text-xs font-medium uppercase tracking-[0.22em] text-violet-300">
-              LingoUp
+            <h1 className="text-[19px] font-semibold">SpeakMate</h1>
+            <p className="mt-1 text-[10px] text-white/35">
+              Real conversations. Real progress.
             </p>
-            <h1 className="mt-1 text-xl font-bold">SpeakMate</h1>
           </div>
 
-          <button
-            className="flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 bg-white/5"
-            aria-label="Settings"
-          >
-            ⚙
+          <button className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05]">
+            <span className="text-lg text-white/60">•••</span>
           </button>
-        </header>
+        </div>
 
-        {/* AI status */}
-        <section className="mt-8 rounded-[30px] border border-white/10 bg-white/[0.06] p-6 shadow-2xl backdrop-blur-xl">
-          <div className="flex items-center gap-4">
-            <div className="relative flex h-16 w-16 items-center justify-center rounded-3xl bg-gradient-to-br from-violet-500 via-indigo-500 to-blue-500 shadow-lg shadow-violet-500/20">
-              <div className="text-2xl">✦</div>
+        {/* AI ORB */}
+        <div className="relative mt-8 flex justify-center">
+          <div className="absolute h-32 w-32 rounded-full bg-violet-600/20 blur-3xl" />
 
-              <span
-                className={`absolute -bottom-1 -right-1 h-4 w-4 rounded-full border-2 border-[#101326] ${
-                  isListening ? "bg-green-400" : "bg-white/40"
-                }`}
-              />
-            </div>
+          <div className="relative flex h-28 w-28 items-center justify-center rounded-full border border-violet-400/20 bg-gradient-to-br from-violet-500/20 to-blue-500/10">
+            <div className="flex h-[72px] w-[72px] items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-blue-500 shadow-[0_0_45px_rgba(99,102,241,.45)]">
+              <div className="relative h-10 w-12 rounded-[45%] bg-white">
+                <span className="absolute left-3 top-3 h-2 w-2 rounded-full bg-[#5965E8]" />
+                <span className="absolute right-3 top-3 h-2 w-2 rounded-full bg-[#5965E8]" />
 
-            <div>
-              <p className="text-sm text-white/50">Your AI speaking partner</p>
-              <h2 className="mt-1 text-xl font-bold">Speak naturally</h2>
+                <span className="absolute bottom-2 left-1/2 h-1 w-5 -translate-x-1/2 rounded-full bg-[#5965E8]" />
+              </div>
             </div>
           </div>
+        </div>
 
-          <div className="mt-6 rounded-2xl bg-black/20 p-4">
-            <p className="text-sm leading-6 text-white/60">{status}</p>
+        {/* AI QUESTION */}
+        <div className="mt-7 rounded-[26px] border border-white/[0.08] bg-[#10183B] p-5">
+          <p className="text-[10px] font-medium uppercase tracking-[0.2em] text-violet-300">
+            SpeakMate AI
+          </p>
+
+          <h2 className="mt-4 text-[19px] font-semibold">
+            Hi Ruxsora! 👋
+          </h2>
+
+          <p className="mt-2 text-[15px] leading-6 text-white/55">
+            What do you usually do in your free time?
+          </p>
+        </div>
+
+        {/* AI VOICE */}
+        <div className="mt-5 flex justify-end">
+          <div className="flex items-center gap-3 rounded-[20px] bg-gradient-to-r from-[#7138E8] to-[#3977ED] px-4 py-3">
+
+            <button className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="white">
+                <path d="M8 5v14l11-7L8 5z" />
+              </svg>
+            </button>
+
+            <div className="flex items-center gap-[3px]">
+              {[10, 17, 24, 14, 28, 19, 25, 13, 20].map(
+                (height, i) => (
+                  <span
+                    key={i}
+                    className="w-[2px] rounded-full bg-white/80"
+                    style={{ height }}
+                  />
+                )
+              )}
+            </div>
+
+            <span className="text-[11px] text-white/70">0:12</span>
           </div>
-        </section>
+        </div>
 
-        {/* Conversation */}
-        <section className="mt-5 rounded-[30px] border border-white/10 bg-white/[0.045] p-5 backdrop-blur-xl">
+        {/* USER ANSWER */}
+        <div className="mt-5 rounded-[26px] border border-white/[0.08] bg-[#0D1636] p-5">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Your answer</h2>
+            <p className="text-[10px] uppercase tracking-[0.2em] text-cyan-300">
+              Your speech
+            </p>
 
-            {transcript && (
-              <button
-                onClick={clearAnswer}
-                className="text-xs font-medium text-white/40 transition hover:text-white"
-              >
-                Clear
-              </button>
+            {isListening && (
+              <span className="text-[10px] text-cyan-300">
+                Listening
+              </span>
             )}
           </div>
 
-          <div className="mt-4 min-h-[150px] rounded-2xl border border-white/10 bg-black/20 p-4">
-            {transcript ? (
-              <p className="text-[16px] leading-7 text-white/90">
-                {transcript}
-              </p>
-            ) : (
-              <p className="text-sm leading-6 text-white/30">
-                Your spoken answer will appear here...
-              </p>
-            )}
-          </div>
-        </section>
+          <p className="mt-4 text-[14px] leading-6 text-white/40">
+            {isListening
+              ? "Listening to your answer..."
+              : "Your words will appear here..."}
+          </p>
+        </div>
 
-        {/* Microphone */}
-        <section className="mt-7 flex flex-col items-center">
+        {/* MICROPHONE */}
+        <div className="flex flex-1 flex-col items-center justify-center py-8">
+
           <button
-            onClick={toggleMicrophone}
-            disabled={!supported}
-            className={`relative flex h-24 w-24 items-center justify-center rounded-full transition-all duration-300 ${
+            onClick={() => setIsListening(!isListening)}
+            className={`relative flex h-[118px] w-[118px] items-center justify-center rounded-full transition-all duration-300 ${
               isListening
-                ? "scale-110 bg-gradient-to-br from-violet-500 to-blue-500 shadow-[0_0_60px_rgba(99,102,241,0.45)]"
-                : "bg-gradient-to-br from-violet-600 to-blue-600 shadow-[0_0_40px_rgba(99,102,241,0.25)] hover:scale-105"
+                ? "bg-gradient-to-br from-violet-500 to-cyan-400 shadow-[0_0_70px_rgba(139,92,246,.5)]"
+                : "bg-gradient-to-br from-[#7439E8] to-[#3977ED] shadow-[0_0_55px_rgba(99,82,235,.3)]"
             }`}
           >
-            {isListening && (
-              <>
-                <span className="absolute inset-[-10px] animate-ping rounded-full border border-violet-400/30" />
-                <span className="absolute inset-[-18px] rounded-full border border-blue-400/10" />
-              </>
-            )}
+            <span className="absolute inset-2 rounded-full border border-white/20" />
 
-            <span className="relative text-3xl">
-              {isListening ? "■" : "🎙️"}
-            </span>
+            <span className="absolute inset-4 rounded-full border border-white/10" />
+
+            <svg
+              width="40"
+              height="40"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="white"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <rect x="9" y="2" width="6" height="12" rx="3" />
+              <path d="M5 10a7 7 0 0 0 14 0" />
+              <path d="M12 17v5" />
+              <path d="M8 22h8" />
+            </svg>
           </button>
 
-          <p className="mt-4 text-sm font-medium text-white/60">
-            {isListening ? "Listening..." : "Tap to speak"}
+          <p className="mt-5 text-[16px] font-semibold">
+            {isListening ? "I'm listening..." : "Tap to speak"}
           </p>
-        </section>
 
-        {/* Unsupported browser message */}
-        {!supported && (
-          <div className="mt-5 rounded-2xl border border-yellow-400/20 bg-yellow-400/10 p-4 text-center text-sm leading-6 text-yellow-200">
-            Speech recognition is not available in this browser. Try opening
-            LingoUp in a browser that supports microphone speech recognition.
+          <p className="mt-1 text-[12px] text-white/35">
+            {isListening
+              ? "Tap the microphone when you finish"
+              : "Speak naturally in English"}
+          </p>
+
+          {/* WAVEFORM */}
+          <div className="mt-5 flex h-7 items-center gap-[4px]">
+            {[9, 17, 25, 15, 22, 28, 19, 25, 12].map(
+              (height, i) => (
+                <span
+                  key={i}
+                  className={`w-[3px] rounded-full ${
+                    isListening
+                      ? "bg-violet-400"
+                      : "bg-white/10"
+                  }`}
+                  style={{ height }}
+                />
+              )
+            )}
           </div>
-        )}
+        </div>
 
-        {/* Goal */}
-        <section className="mt-8 rounded-[28px] border border-white/10 bg-gradient-to-br from-violet-500/10 to-blue-500/10 p-5">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">
-            Speaking goal
+        {/* TIPS */}
+        <div className="rounded-[25px] border border-white/[0.08] bg-[#0D1636] p-5">
+          <p className="text-[10px] uppercase tracking-[0.2em] text-white/35">
+            Practice tips
           </p>
 
-          <h3 className="mt-2 text-lg font-bold">
-            Speak clearly and naturally
-          </h3>
+          <div className="mt-4 space-y-3">
+            <p className="text-[12px] text-white/45">
+              • Speak naturally — don't worry about mistakes.
+            </p>
 
-          <p className="mt-2 text-sm leading-6 text-white/45">
-            Don't worry about mistakes. Speak naturally and LingoUp will help
-            you improve step by step.
-          </p>
-        </section>
+            <p className="text-[12px] text-white/45">
+              • Try to answer in complete sentences.
+            </p>
 
-        {/* Bottom navigation */}
-        <nav className="mt-8 grid grid-cols-5 rounded-[26px] border border-white/10 bg-white/[0.05] p-2 backdrop-blur-xl">
-          {[
-            ["⌂", "Home", "/"],
-            ["◉", "Practice", "/practice"],
-            ["🎙", "Speak", "/speakmate"],
-            ["▥", "Progress", "/progress"],
-            ["◯", "Profile", "/profile"],
-          ].map(([icon, label, href]) => (
-            <button
-              key={label}
-              onClick={() => {
-                window.location.href = href;
-              }}
-              className={`flex flex-col items-center gap-1 rounded-2xl px-1 py-3 text-[10px] transition ${
-                label === "Speak"
-                  ? "bg-white/10 text-violet-300"
-                  : "text-white/40 hover:bg-white/5 hover:text-white/70"
-              }`}
-            >
-              <span className="text-lg">{icon}</span>
-              <span>{label}</span>
-            </button>
-          ))}
+            <p className="text-[12px] text-white/45">
+              • Listen carefully and speak with confidence.
+            </p>
+          </div>
+        </div>
+
+        {/* BOTTOM NAV */}
+        <nav className="mt-5 flex items-center justify-between rounded-[25px] border border-white/[0.08] bg-[#10183B] px-2 py-4">
+
+          <NavItem label="Home" icon="⌂" />
+
+          <NavItem label="Practice" icon="✦" />
+
+          <NavItem
+            label="SpeakMate"
+            icon="◉"
+            active
+          />
+
+          <NavItem label="Progress" icon="◔" />
+
+          <NavItem label="Profile" icon="○" />
+
         </nav>
       </div>
     </main>
+  );
+}
+
+function NavItem({
+  label,
+  icon,
+  active = false,
+}: {
+  label: string;
+  icon: string;
+  active?: boolean;
+}) {
+  return (
+    <button
+      className={`flex w-1/5 flex-col items-center gap-1 ${
+        active ? "text-violet-300" : "text-white/30"
+      }`}
+    >
+      <span className="text-[18px]">{icon}</span>
+      <span className="text-[9px]">{label}</span>
+    </button>
   );
       }
