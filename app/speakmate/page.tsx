@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from "react";
 export default function SpeakMate() {
   const [isListening, setIsListening] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
+
   const [transcript, setTranscript] = useState("");
   const [interimText, setInterimText] = useState("");
+
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
 
   const recognitionRef = useRef<any>(null);
@@ -16,10 +18,11 @@ export default function SpeakMate() {
   const streamRef = useRef<MediaStream | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
 
-  // --------------------------------
-  // Browser support
-  // --------------------------------
+  const lastFinalTextRef = useRef("");
 
+  // -----------------------------
+  // CHECK SPEECH RECOGNITION
+  // -----------------------------
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -32,10 +35,9 @@ export default function SpeakMate() {
     }
   }, []);
 
-  // --------------------------------
-  // START
-  // --------------------------------
-
+  // -----------------------------
+  // START MICROPHONE
+  // -----------------------------
   const startListening = async () => {
     if (isListening) return;
 
@@ -49,19 +51,18 @@ export default function SpeakMate() {
     }
 
     try {
-      // Microphone permission
+      // Ask for microphone permission
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
       });
 
       streamRef.current = stream;
 
-      // ----------------------------
-      // Audio recording
-      // ----------------------------
-
       audioChunksRef.current = [];
 
+      // -----------------------------
+      // AUDIO RECORDING
+      // -----------------------------
       const recorder = new MediaRecorder(stream);
 
       recorderRef.current = recorder;
@@ -77,49 +78,47 @@ export default function SpeakMate() {
           type: "audio/webm",
         });
 
-        const url = URL.createObjectURL(blob);
+        const newUrl = URL.createObjectURL(blob);
 
         setAudioUrl((oldUrl) => {
           if (oldUrl) {
             URL.revokeObjectURL(oldUrl);
           }
 
-          return url;
+          return newUrl;
         });
       };
 
       recorder.start();
 
-      // ----------------------------
-      // Speech recognition
-      // ----------------------------
-
+      // -----------------------------
+      // SPEECH RECOGNITION
+      // -----------------------------
       const recognition = new SpeechRecognition();
 
       recognition.lang = "en-US";
 
-      // User presses microphone again to stop
+      // Important:
+      // Keep listening until the user presses
+      // the microphone again.
       recognition.continuous = true;
 
       recognition.interimResults = true;
 
       shouldListenRef.current = true;
 
+      lastFinalTextRef.current = "";
+
       recognition.onstart = () => {
         setIsListening(true);
       };
 
+      // -----------------------------
+      // WHEN USER SPEAKS
+      // -----------------------------
       recognition.onresult = (event: any) => {
-        let finalText = "";
-        let temporaryText = "";
-
-        /*
-         * IMPORTANT:
-         *
-         * event.resultIndex dan boshlab o'qiymiz.
-         * Shu bilan brauzer qayta yuborgan
-         * eski resultlarni qayta qo'shish kamayadi.
-         */
+        let finalParts: string[] = [];
+        let temporaryParts: string[] = [];
 
         for (
           let i = event.resultIndex;
@@ -128,60 +127,85 @@ export default function SpeakMate() {
         ) {
           const result = event.results[i];
 
+          if (!result || !result[0]) continue;
+
           const text = result[0].transcript.trim();
 
           if (!text) continue;
 
           if (result.isFinal) {
-            finalText += text + " ";
+            finalParts.push(text);
           } else {
-            temporaryText += text + " ";
+            temporaryParts.push(text);
           }
         }
 
-        if (finalText.trim()) {
-          setTranscript((previous) => {
-            const newText = finalText.trim();
+        // -----------------------------
+        // FINAL TEXT
+        // -----------------------------
+        if (finalParts.length > 0) {
+          const newText = finalParts.join(" ").trim();
 
-            if (!previous.trim()) {
-              return newText;
-            }
+          if (newText) {
+            setTranscript((previous) => {
+              const oldText = previous.trim();
 
-            /*
-             * Exact duplicate protection
-             */
+              if (!oldText) {
+                lastFinalTextRef.current = newText;
+                return newText;
+              }
 
-            const previousWords = previous
-              .trim()
-              .toLowerCase();
+              const oldLower = oldText.toLowerCase();
+              const newLower = newText.toLowerCase();
 
-            const newWords = newText
-              .trim()
-              .toLowerCase();
+              // Exact duplicate
+              if (oldLower === newLower) {
+                return oldText;
+              }
 
-            if (previousWords === newWords) {
-              return previous.trim();
-            }
+              // Browser repeated the same sentence
+              if (
+                lastFinalTextRef.current.toLowerCase() ===
+                newLower
+              ) {
+                return oldText;
+              }
 
-            /*
-             * Agar brauzer oldingi gapni yana
-             * to'liq qaytarsa, uni qo'shmaymiz.
-             */
+              // New sentence is already contained
+              if (
+                oldLower.includes(newLower) &&
+                newLower.length > 4
+              ) {
+                return oldText;
+              }
 
-            if (
-              previousWords.includes(newWords) &&
-              newWords.length > 5
-            ) {
-              return previous.trim();
-            }
+              // Old sentence is contained in the new recognition
+              if (
+                newLower.includes(oldLower) &&
+                oldLower.length > 4
+              ) {
+                lastFinalTextRef.current = newText;
+                return newText;
+              }
 
-            return `${previous.trim()} ${newText}`;
-          });
+              lastFinalTextRef.current = newText;
+
+              return `${oldText} ${newText}`;
+            });
+          }
         }
 
-        setInterimText(temporaryText.trim());
+        // -----------------------------
+        // LIVE / TEMPORARY TEXT
+        // -----------------------------
+        setInterimText(
+          temporaryParts.join(" ").trim()
+        );
       };
 
+      // -----------------------------
+      // ERROR
+      // -----------------------------
       recognition.onerror = (event: any) => {
         console.log(
           "Speech recognition error:",
@@ -194,13 +218,10 @@ export default function SpeakMate() {
         }
       };
 
+      // -----------------------------
+      // AUTO RESTART
+      // -----------------------------
       recognition.onend = () => {
-        /*
-         * User hali STOP bosmagan bo'lsa,
-         * recognition o'z-o'zidan tugaganda
-         * qayta ishga tushadi.
-         */
-
         if (shouldListenRef.current) {
           try {
             recognition.start();
@@ -217,18 +238,17 @@ export default function SpeakMate() {
       console.error("Microphone error:", error);
 
       setIsListening(false);
+      shouldListenRef.current = false;
     }
   };
 
-  // --------------------------------
-  // STOP
-  // --------------------------------
-
+  // -----------------------------
+  // STOP MICROPHONE
+  // -----------------------------
   const stopListening = () => {
     shouldListenRef.current = false;
 
     // Stop speech recognition
-
     if (recognitionRef.current) {
       try {
         recognitionRef.current.stop();
@@ -238,18 +258,18 @@ export default function SpeakMate() {
     }
 
     // Stop audio recorder
-
     if (
       recorderRef.current &&
       recorderRef.current.state !== "inactive"
     ) {
-      recorderRef.current.stop();
+      try {
+        recorderRef.current.stop();
+      } catch {}
     }
 
     recorderRef.current = null;
 
-    // Release microphone
-
+    // Stop microphone stream
     if (streamRef.current) {
       streamRef.current
         .getTracks()
@@ -262,10 +282,9 @@ export default function SpeakMate() {
     setInterimText("");
   };
 
-  // --------------------------------
-  // TOGGLE
-  // --------------------------------
-
+  // -----------------------------
+  // TOGGLE MICROPHONE
+  // -----------------------------
   const toggleMicrophone = () => {
     if (isListening) {
       stopListening();
@@ -274,10 +293,9 @@ export default function SpeakMate() {
     }
   };
 
-  // --------------------------------
+  // -----------------------------
   // CLEANUP
-  // --------------------------------
-
+  // -----------------------------
   useEffect(() => {
     return () => {
       shouldListenRef.current = false;
@@ -303,20 +321,21 @@ export default function SpeakMate() {
           .getTracks()
           .forEach((track) => track.stop());
       }
-    };
-  }, []);
 
-  // --------------------------------
-  // UI
-  // --------------------------------
+      if (audioUrl) {
+        URL.revokeObjectURL(audioUrl);
+      }
+    };
+  }, [audioUrl]);
 
   return (
     <main className="min-h-screen bg-[#061338] text-white">
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col px-5 pb-6 pt-6">
 
-        {/* HEADER */}
+        {/* ================= HEADER ================= */}
 
         <div className="flex items-center justify-between">
+
           <button
             onClick={() => window.history.back()}
             className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-xl text-white/80"
@@ -334,14 +353,18 @@ export default function SpeakMate() {
             </p>
           </div>
 
-          <button className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-xl text-white/70">
+          <button
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-white/5 text-xl text-white/70"
+          >
             ⋮
           </button>
+
         </div>
 
-        {/* AI AVATAR */}
+        {/* ================= AI AVATAR ================= */}
 
         <div className="mt-7 flex justify-center">
+
           <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-violet-500/30 to-blue-500/20 shadow-[0_0_60px_rgba(99,102,241,0.35)]">
 
             <div className="absolute inset-2 rounded-full border border-white/10" />
@@ -357,11 +380,14 @@ export default function SpeakMate() {
                 <span className="absolute bottom-2 left-1/2 h-1 w-4 -translate-x-1/2 rounded-full bg-indigo-500" />
 
               </div>
+
             </div>
+
           </div>
+
         </div>
 
-        {/* AI MESSAGE */}
+        {/* ================= AI MESSAGE ================= */}
 
         <div className="mt-7 rounded-3xl border border-white/10 bg-white/5 p-5 backdrop-blur">
 
@@ -376,11 +402,13 @@ export default function SpeakMate() {
           <p className="mt-1 text-[15px] leading-6 text-white/60">
             What do you usually do in your free time?
           </p>
+
         </div>
 
-        {/* AI VOICE */}
+        {/* ================= AI VOICE ================= */}
 
         <div className="mt-5 flex justify-end">
+
           <div className="flex items-center gap-3 rounded-2xl bg-gradient-to-r from-violet-600 to-blue-600 px-4 py-3">
 
             <button className="flex h-9 w-9 items-center justify-center rounded-full bg-white/15">
@@ -388,21 +416,25 @@ export default function SpeakMate() {
             </button>
 
             <div className="flex items-center gap-[3px]">
+
               <span className="h-3 w-[2px] rounded-full bg-white/60" />
               <span className="h-5 w-[2px] rounded-full bg-white/80" />
               <span className="h-7 w-[2px] rounded-full bg-white" />
               <span className="h-4 w-[2px] rounded-full bg-white/70" />
               <span className="h-6 w-[2px] rounded-full bg-white" />
               <span className="h-3 w-[2px] rounded-full bg-white/60" />
+
             </div>
 
             <span className="text-xs text-white/80">
               0:12
             </span>
+
           </div>
+
         </div>
 
-        {/* USER SPEECH */}
+        {/* ================= USER SPEECH ================= */}
 
         <div className="mt-5 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
 
@@ -414,14 +446,20 @@ export default function SpeakMate() {
 
             {isListening && (
               <div className="flex items-center gap-2 text-[10px] text-green-300">
+
                 <span className="h-2 w-2 animate-pulse rounded-full bg-green-400" />
+
                 Listening
+
               </div>
             )}
+
           </div>
 
           <p className="mt-3 min-h-[24px] text-sm leading-6 text-white/75">
+
             {transcript || "Your words will appear here..."}
+
           </p>
 
           {interimText && (
@@ -429,14 +467,20 @@ export default function SpeakMate() {
               {interimText}
             </p>
           )}
+
         </div>
 
-        {/* MICROPHONE */}
+        {/* ================= MICROPHONE ================= */}
 
         <div className="flex flex-1 flex-col items-center justify-center py-8">
 
           <button
             onClick={toggleMicrophone}
+            aria-label={
+              isListening
+                ? "Stop microphone"
+                : "Start microphone"
+            }
             className={`relative flex h-28 w-28 items-center justify-center rounded-full transition-all duration-300 ${
               isListening
                 ? "scale-110 bg-gradient-to-br from-violet-500 to-cyan-400 shadow-[0_0_80px_rgba(139,92,246,0.65)]"
@@ -475,7 +519,9 @@ export default function SpeakMate() {
               <path d="M12 17v5" />
 
               <path d="M8 22h8" />
+
             </svg>
+
           </button>
 
           <p className="mt-5 text-sm font-semibold">
@@ -511,11 +557,13 @@ export default function SpeakMate() {
             )}
 
           </div>
+
         </div>
 
-        {/* YOUR RECORDING */}
+        {/* ================= RECORDING ================= */}
 
         {audioUrl && (
+
           <div className="mb-5 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
 
             <div className="mb-3">
@@ -535,10 +583,12 @@ export default function SpeakMate() {
               src={audioUrl}
               className="w-full"
             />
+
           </div>
+
         )}
 
-        {/* TIPS */}
+        {/* ================= TIPS ================= */}
 
         <div className="mb-5 rounded-3xl border border-white/10 bg-white/[0.04] p-4">
 
@@ -561,44 +611,59 @@ export default function SpeakMate() {
             </p>
 
           </div>
+
         </div>
 
-        {/* BROWSER WARNING */}
+        {/* ================= BROWSER WARNING ================= */}
 
         {!isSupported && (
+
           <div className="mb-5 rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-center text-xs text-red-200">
+
             Speech recognition is not supported in this browser.
             Please try Chrome.
+
           </div>
+
         )}
 
-        {/* BOTTOM NAV */}
+        {/* ================= BOTTOM NAV ================= */}
 
         <nav className="flex items-center justify-around rounded-3xl border border-white/10 bg-white/5 p-3 backdrop-blur">
 
           <button className="flex flex-col items-center gap-1 text-white/40">
             <span>⌂</span>
-            <span className="text-[9px]">Home</span>
+            <span className="text-[9px]">
+              Home
+            </span>
           </button>
 
           <button className="flex flex-col items-center gap-1 text-white/40">
             <span>✦</span>
-            <span className="text-[9px]">Practice</span>
+            <span className="text-[9px]">
+              Practice
+            </span>
           </button>
 
           <button className="flex flex-col items-center gap-1 text-violet-300">
             <span>🎙</span>
-            <span className="text-[9px]">SpeakMate</span>
+            <span className="text-[9px]">
+              SpeakMate
+            </span>
           </button>
 
           <button className="flex flex-col items-center gap-1 text-white/40">
             <span>◔</span>
-            <span className="text-[9px]">Progress</span>
+            <span className="text-[9px]">
+              Progress
+            </span>
           </button>
 
           <button className="flex flex-col items-center gap-1 text-white/40">
             <span>○</span>
-            <span className="text-[9px]">Profile</span>
+            <span className="text-[9px]">
+              Profile
+            </span>
           </button>
 
         </nav>
@@ -606,4 +671,4 @@ export default function SpeakMate() {
       </div>
     </main>
   );
-                    }
+        }
